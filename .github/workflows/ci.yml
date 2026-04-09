@@ -1,0 +1,57 @@
+# =============================================================================
+# Pipeline CI/CD - FinancialAI Backend
+# Jobs: build, test (paralelos) -> deploy -> notify
+# =============================================================================
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, pipeline]
+  pull_request:
+    branches: [main, pipeline]
+
+# Permissões para push de imagem Docker ao GitHub Container Registry
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # ===========================================================================
+  # JOB 1: BUILD
+  # Executa lint, constrói a imagem Docker e salva como artifact.
+  # Roda em PARALELO com o job de testes.
+  # ===========================================================================
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Instala dependências para rodar lint no host
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Executar linter (ESLint)
+        run: npm run lint
+
+      # Constrói a imagem Docker da aplicação
+      - name: Build da imagem Docker
+        run: docker build -t tcc-backend:${{ github.sha }} .
+
+      # Exporta a imagem como .tar para uso em jobs posteriores
+      - name: Salvar imagem Docker como artifact
+        run: docker save tcc-backend:${{ github.sha }} -o tcc-backend-image.tar
+
+      - name: Upload do artifact de build
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: tcc-backend-image.tar
+          retention-days: 7

@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum AccountType {
+  WALLET
+  BANK
+  CREDIT_CARD
+  SAVINGS
+}
+
+enum AlertType {
+  BUDGET_EXCEEDED
+  LOW_BALANCE
+  BILL_DUE
+  UNUSUAL_SPENDING
+}
+
+enum MessageSender {
+  USER
+  BOT
+}
+
+model User {
+  id            String           @id @default(uuid())
+  name          String
+  email         String           @unique
+  passwordHash  String
+  phone         String?
+  refreshToken  String?
+  resetToken    String?
+  resetTokenExpires DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  preferences   UserPreference?
+  accounts      Account[]
+  categories    Category[]
+  transactions  Transaction[]
+  budgets       Budget[]
+  alerts        Alert[]
+  conversations Conversation[]
+}
+
+model UserPreference {
+  id          String  @id @default(uuid())
+  userId      String  @unique
+  language    String  @default("pt-BR")
+  currency    String  @default("BRL")
+  timezone    String  @default("America/Sao_Paulo")
+  chatbotTone String?
+  notificationsEnabled Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Account {
+  id             String        @id @default(uuid())
+  userId         String
+  name           String
+  type           AccountType
+  balance        Float         @default(0)
+  initialBalance Float         @default(0)
+  status         Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+
+  user         User          @relation(fields: [userId], references: [id])
+  transactions Transaction[]
+}
+
+model Category {
+  id       String           @id @default(uuid())
+  userId   String
+  name     String
+  type     TransactionType
+
+  user         User          @relation(fields: [userId], references: [id])
+  transactions Transaction[]
+  budgets      Budget[]
+}
+
+model Transaction {
+  id              String           @id @default(uuid())
+  userId          String
+  accountId       String
+  categoryId      String?
+  type            TransactionType
+  amount          Float
+  description     String?
+  transactionDate DateTime
+  createdAt       DateTime         @default(now())
+  source          String           @default("user") // user, chatbot, system
+
+  user     User     @relation(fields: [userId], references: [id])
+  account  Account  @relation(fields: [accountId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+}
+
+model Budget {
+  id          String   @id @default(uuid())
+  userId      String
+  categoryId  String
+  amountLimit Float
+  startDate   DateTime
+  endDate     DateTime
+
+  user     User     @relation(fields: [userId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
+}
+
+model Alert {
+  id        String    @id @default(uuid())
+  userId    String
+  type      AlertType
+  title     String
+  message   String
+  status    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  userId    String
+  startedAt DateTime  @default(now())
+  status    Boolean   @default(true)
+
+  user     User     @relation(fields: [userId], references: [id])
+  messages Message[]
+}
+
+model Message {
+  id             String         @id @default(uuid())
+  conversationId String
+  sender         MessageSender
+  content        String
+  detectedIntent String?
+  metadataJson   Json?
+  createdAt      DateTime       @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+}

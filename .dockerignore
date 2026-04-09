@@ -1,0 +1,21 @@
+# Dependências locais
+node_modules
+
+# Arquivos de log
+npm-debug.log
+yarn-error.log
+*.log
+
+# Configurações de ambiente locais
+.env.local
+
+# Cache
+.cache
+dist
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Docker (opcional)
+docker-compose.override.yml

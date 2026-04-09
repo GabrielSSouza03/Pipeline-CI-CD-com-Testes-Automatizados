@@ -121,4 +121,30 @@ describe("authUtils", () => {
       refreshToken: "refresh123",
     });
   });
+
+  it('hashPassword deve gerar hash que combina com a senha original', async () => {
+    const password = 'senhaSegura123';
+    const hash = await authUtils.hashPassword(password);
+
+    expect(hash).toBeTruthy();
+    expect(await authUtils.comparePasswords(password, hash)).toBe(true);
+  });
+
+  it('hashPassword deve lançar erro quando a senha não é fornecida', async () => {
+    await expect(authUtils.hashPassword()).rejects.toThrow('Senha é obrigatória');
+  });
+
+  it('comparePasswords deve retornar true para senha válida', async () => {
+    const password = 'senha123';
+    const hash = await authUtils.hashPassword(password);
+
+    expect(await authUtils.comparePasswords(password, hash)).toBe(true);
+  });
+
+  it('comparePasswords deve retornar false para senha inválida', async () => {
+    const password = 'senha123';
+    const hash = await authUtils.hashPassword(password);
+
+    expect(await authUtils.comparePasswords('senhaErrada', hash)).toBe(false);
+  });
 });

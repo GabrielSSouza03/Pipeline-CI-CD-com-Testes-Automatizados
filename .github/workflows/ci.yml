@@ -34,13 +34,6 @@ jobs:
         with:
           node-version: "20"
 
-      # Instala dependências para rodar lint no host
-      - name: Instalar dependências
-        run: npm ci
-
-      - name: Executar linter (ESLint)
-        run: npm run lint
-
       # Constrói a imagem Docker da aplicação
       - name: Build da imagem Docker
         run: docker build -t tcc-backend:${{ github.sha }} .

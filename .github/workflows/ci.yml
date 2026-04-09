@@ -1,0 +1,142 @@
+# =============================================================================
+# Pipeline CI/CD - FinancialAI Backend
+# Jobs: build, test (paralelos) -> deploy -> notify
+# =============================================================================
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, pipeline]
+  pull_request:
+    branches: [main, pipeline]
+
+# Permissões para push de imagem Docker ao GitHub Container Registry
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # ===========================================================================
+  # JOB 1: BUILD
+  # Executa lint, constrói a imagem Docker e salva como artifact.
+  # Roda em PARALELO com o job de testes.
+  # ===========================================================================
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Constrói a imagem Docker da aplicação
+      - name: Build da imagem Docker
+        run: docker build -t projeto-c14:${{ github.sha }} .
+
+      # Exporta a imagem como .tar para uso em jobs posteriores
+      - name: Salvar imagem Docker como artifact
+        run: docker save projeto-c14:${{ github.sha }} -o projeto-c14-image.tar
+
+      - name: Upload do artifact de build
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: projeto-c14-image.tar
+          retention-days: 7
+
+  # ===========================================================================
+  # JOB 2: TESTES
+  # Sobe o ambiente com Docker Compose, executa os testes unitários e
+  # armazena relatório + cobertura como artifacts.
+  # Roda em PARALELO com o job de build.
+  # ===========================================================================
+  test:
+    runs-on: ubuntu-latest
+
+    env:
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN }}
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Build e start dos serviços (Postgres + App)
+        run: |
+          docker compose build
+          docker compose up -d
+
+      # Aguarda o PostgreSQL estar pronto para aceitar conexões
+      - name: Aguardar PostgreSQL ficar pronto
+        run: |
+          timeout 60s bash -c "until docker compose exec -T postgres pg_isready -U $DB_USER; do sleep 2; done"
+
+      - name: Logs do Postgres (debug)
+        if: failure()
+        run: docker compose logs postgres --tail 50 || true
+
+      - name: Gerar Prisma Client
+        run: docker compose exec -T app npx prisma generate
+
+      # Executa todos os testes unitários com cobertura
+      - name: Executar testes unitários
+        run: docker compose exec -T app npm test
+
+      # Copia relatório de testes e cobertura do container para o host
+      - name: Copiar artifacts de teste do container
+        if: always()
+        run: |
+          CONTAINER_ID=$(docker compose ps -q app)
+          mkdir -p artifacts
+          docker cp $CONTAINER_ID:/app/artifacts ./artifacts || true
+
+      - name: Upload dos artifacts de teste
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts
+          path: artifacts
+
+      - name: Parar e remover containers
+        if: always()
+        run: docker compose down -v
+
+  # ===========================================================================
+  # JOB 3: DEPLOY
+  # Publica a imagem Docker no GitHub Container Registry (ghcr.io).
+  # Roda SOMENTE após sucesso do build e dos testes, e apenas em push na main.
+  # ===========================================================================
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Download do artifact de build
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Carregar imagem Docker
+        run: docker load -i projeto-c14-image.tar
+
+      # Autentica no GitHub Container Registry usando o token automático
+      - name: Login no GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      # Tageia e publica a imagem com :latest e :sha
+      - name: Tag e push da imagem para ghcr.io
+        run: |
+          IMAGE_NAME=ghcr.io/$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')/projeto-c14
+          docker tag projeto-c14:${{ github.sha }} $IMAGE_NAME:latest
+          docker tag projeto-c14:${{ github.sha }} $IMAGE_NAME:${{ github.sha }}
+          docker push $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:${{ github.sha }}

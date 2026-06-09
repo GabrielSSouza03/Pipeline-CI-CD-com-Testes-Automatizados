@@ -191,7 +191,7 @@ docker compose logs -f     # Acompanhar logs
 
 - Rode com o seguinte comando para persistir o jenkins
 ```bash
-docker compose  -p jenkins  -f docker-compose.jenkins.yml  up -d
+docker compose  -p jenkins  -f docker-compose.jenkins.yml  up -d --build
 ```
 ---
 

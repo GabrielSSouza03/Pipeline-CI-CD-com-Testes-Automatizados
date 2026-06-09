@@ -23,51 +23,57 @@ pipeline {
         BUILD_PROJECT  = "build_${BUILD_ID}"
         TEST_PROJECT   = "test_${BUILD_ID}"
         DEPLOY_PROJECT = "deploy_${BUILD_ID}"
-        IMAGE_TAG      = "app:${BUILD_ID}"
-        NOTIFY_TO      = 'time@empresa.com'
+        IMAGE_NAME     = "c14-np2"
+        IMAGE_TAG      = "c14-np2:${GIT_COMMIT}"
     }
 
     stages {
 
         // ─────────────────────────────────────────
-        // 1. BUILD
+        // 1. BUILD do backend
         // ─────────────────────────────────────────
+
         stage('Build') {
             stages {
-
+ 
                 stage('Checkout') {
                     steps {
                         checkout scm
                     }
                 }
-
+ 
                 stage('Instalar dependências') {
                     steps {
-                        sh 'npm ci --prefer-offline'
+                        dir('backend') {
+                            sh 'npm ci --prefer-offline'
+                        }
                     }
                 }
-
-                stage('Compilar projeto') {
+ 
+                stage('Build da imagem Docker') {
                     steps {
-                        sh 'npm run build'
+                        dir('backend') {
+                            sh "docker build -t ${IMAGE_TAG} ."
+                        }
                     }
                 }
-
-                stage('Empacotar artefato') {
+ 
+                stage('Salvar imagem como artefato') {
                     steps {
-                        sh '''
-                            mkdir -p artifacts
-                            tar -czf artifacts/dist-${BUILD_ID}.tar.gz dist/
-                        '''
-                        stash name: 'dist', includes: 'dist/**,artifacts/**'
-                        archiveArtifacts artifacts: 'artifacts/*.tar.gz', fingerprint: true
+                        sh "docker save ${IMAGE_TAG} -o tcc-backend-image.tar"
+                        archiveArtifacts artifacts: 'tcc-backend-image.tar',
+                                         fingerprint: true
                     }
                 }
-
+ 
+            }
+            post {
+                always {
+                    sh "docker image rm ${IMAGE_TAG} || true"
+                }
             }
         }
 
-        
     }
 
     // ─────────────────────────────────────────

@@ -44,24 +44,24 @@ pipeline {
                 stage('Instalar dependências e compilar') {
                     steps {
                         dir('backend') {
-                            sh '''
-                                docker run --rm \
-                                    -v $(pwd):/app \
-                                    -w /app \
-                                    node:20-alpine \
-                                    sh -c "npm ci --prefer-offline && npm run build"
-                            '''
+                            sh """
+                                docker run --rm \\
+                                    -v \$(pwd):/app \\
+                                    -w /app \\
+                                    node:20-alpine \\
+                                    sh -c 'npm ci --prefer-offline && npm run build'
+                            """
                         }
                     }
                 }
-                
+
                 stage('Empacotar artefato') {
                     steps {
                         dir('backend') {
-                            sh '''
+                            sh """
                                 mkdir -p artifacts
                                 tar -czf artifacts/dist-${BUILD_ID}.tar.gz dist/
-                            '''
+                            """
                             stash name: 'dist', includes: 'dist/**,artifacts/**'
                             archiveArtifacts artifacts: 'artifacts/*.tar.gz', fingerprint: true
                         }

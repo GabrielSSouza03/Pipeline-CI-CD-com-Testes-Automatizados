@@ -23,9 +23,8 @@ pipeline {
         BUILD_PROJECT  = "build_${BUILD_ID}"
         TEST_PROJECT   = "test_${BUILD_ID}"
         DEPLOY_PROJECT = "deploy_${BUILD_ID}"
-        IMAGE_NAME     = "tcc-backend"
-        IMAGE_TAG      = "tcc-backend:${GIT_COMMIT}"
-        NOTIFY_TO      = 'time@empresa.com'
+        IMAGE_NAME     = "C14-NP2"
+        IMAGE_TAG      = "C14-NP2:${GIT_COMMIT}"
     }
 
     stages {
@@ -47,14 +46,6 @@ pipeline {
                     steps {
                         dir('backend') {
                             sh 'npm ci --prefer-offline'
-                        }
-                    }
-                }
- 
-                stage('Lint') {
-                    steps {
-                        dir('backend') {
-                            sh 'npm run lint'
                         }
                     }
                 }

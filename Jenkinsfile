@@ -32,43 +32,21 @@ pipeline {
         // ─────────────────────────────────────────
         // 1. BUILD do backend
         // ─────────────────────────────────────────
-        stage('Instalar dependências') {
-            steps {
-                dir('backend') {
-                    sh """
-                    docker run --rm \
-                    -v \$(pwd):/app \
-                    -w /app \
-                    node:20-alpine \
-                    npm ci
-                    """
-                }
-            }
-        }
-
         stage('Build') {
             stages {
 
-                stage('Diagnóstico') {
+                stage('Checkout') {
                     steps {
-                        dir('backend') {
-                            sh '''
-                                pwd
-                                ls -la
-                            '''
-                        }
+                        checkout scm
                     }
                 }
 
-                stage('Compilar código') {
+                stage('Compilar projeto') {
                     steps {
-                        dir('backend') {
+                        withCredentials(appSecrets()) {
                             sh """
-                            docker run --rm \
-                            -v \$(pwd):/app \
-                            -w /app \
-                            node:20-alpine \
-                            sh -c 'npm run build'
+                                docker compose -p ${BUILD_PROJECT} down -v || true
+                                docker compose -p ${BUILD_PROJECT} build --no-cache
                             """
                         }
                     }
@@ -76,17 +54,22 @@ pipeline {
 
                 stage('Empacotar artefato') {
                     steps {
-                        dir('backend') {
-                            sh """
-                                mkdir -p artifacts
-                                tar -czf artifacts/dist-${BUILD_ID}.tar.gz dist/
-                            """
-                            stash name: 'dist', includes: 'dist/**,artifacts/**'
-                            archiveArtifacts artifacts: 'artifacts/*.tar.gz', fingerprint: true
-                        }
+                        sh """
+                            docker compose -p ${BUILD_PROJECT} run --rm app sh -c \
+                                'mkdir -p /app/artifacts && tar -czf /app/artifacts/dist-${BUILD_ID}.tar.gz -C /app dist'
+                            mkdir -p artifacts
+                            docker cp \$(docker compose -p ${BUILD_PROJECT} ps -q app):/app/artifacts/dist-${BUILD_ID}.tar.gz artifacts/ || true
+                        """
+                        stash name: 'dist', includes: 'artifacts/**'
+                        archiveArtifacts artifacts: 'artifacts/*.tar.gz', fingerprint: true
                     }
                 }
 
+            }
+            post {
+                always {
+                    sh "docker compose -p ${BUILD_PROJECT} down -v || true"
+                }
             }
         }
 

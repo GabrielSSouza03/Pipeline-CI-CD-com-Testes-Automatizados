@@ -105,13 +105,15 @@ pipeline {
                 always {
                     echo 'Publicando artifacts...'
 
-                    archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
+                    archiveArtifacts artifacts: '/backend/artifacts/**', fingerprint: true
                     junit 'artifacts/test-results.xml'
 
-                    sh '''
-                        docker compose -p ${TEST_PROJECT} logs --tail 100 || true
-                        docker compose -p ${TEST_PROJECT} down -v || true
-                    '''
+                    dir('backend') {
+                        sh '''
+                            docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} logs --tail 100 || true
+                            docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} down -v || true
+                        '''
+                    }
                 }
             }
         }

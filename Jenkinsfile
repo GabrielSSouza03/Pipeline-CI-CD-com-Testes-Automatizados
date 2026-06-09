@@ -23,7 +23,8 @@ pipeline {
         BUILD_PROJECT  = "build_${BUILD_ID}"
         TEST_PROJECT   = "test_${BUILD_ID}"
         DEPLOY_PROJECT = "deploy_${BUILD_ID}"
-        IMAGE_TAG      = "app:${BUILD_ID}"
+        IMAGE_NAME     = "tcc-backend"
+        IMAGE_TAG      = "tcc-backend:${GIT_COMMIT}"
         NOTIFY_TO      = 'time@empresa.com'
     }
 
@@ -32,30 +33,52 @@ pipeline {
         // ─────────────────────────────────────────
         // 1. BUILD do backend
         // ─────────────────────────────────────────
+
         stage('Build') {
             stages {
-
+ 
                 stage('Checkout') {
                     steps {
                         checkout scm
                     }
                 }
-
-                stage('Compilar projeto') {
+ 
+                stage('Instalar dependências') {
                     steps {
-                        withCredentials(appSecrets()) {
-                            sh """
-                                docker compose -p ${BUILD_PROJECT} down -v || true
-                                docker compose -p ${BUILD_PROJECT} build --no-cache
-                            """
+                        dir('backend') {
+                            sh 'npm ci --prefer-offline'
                         }
                     }
                 }
-
+ 
+                stage('Lint') {
+                    steps {
+                        dir('backend') {
+                            sh 'npm run lint'
+                        }
+                    }
+                }
+ 
+                stage('Build da imagem Docker') {
+                    steps {
+                        dir('backend') {
+                            sh "docker build -t ${IMAGE_TAG} ."
+                        }
+                    }
+                }
+ 
+                stage('Salvar imagem como artefato') {
+                    steps {
+                        sh "docker save ${IMAGE_TAG} -o tcc-backend-image.tar"
+                        archiveArtifacts artifacts: 'tcc-backend-image.tar',
+                                         fingerprint: true
+                    }
+                }
+ 
             }
             post {
                 always {
-                    sh "docker compose -p ${BUILD_PROJECT} down -v || true"
+                    sh "docker image rm ${IMAGE_TAG} || true"
                 }
             }
         }

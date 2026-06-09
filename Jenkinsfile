@@ -87,16 +87,18 @@ pipeline {
                     string(credentialsId: 'JWT_SECRET', variable: 'JWT_SECRET'),
                     string(credentialsId: 'JWT_EXPIRES_IN', variable: 'JWT_EXPIRES_IN')
                 ]) {
-                    sh '''
-                        docker compose -p ${TEST_PROJECT} down -v  true
-                        docker compose -p ${TEST_PROJECT} build --no-cache
-                        docker compose -p ${TEST_PROJECT} up -d
+                    dir('backend') {
+                        sh '''
+                            docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} down -v || true
+                            docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} build --no-cache
+                            docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} up -d
 
-                        timeout 60s bash -c 'until docker compose -p ${TEST_PROJECT} exec -T postgres pg_isready -U '"$DB_USER"'; do sleep 2; done'
+                            timeout 60s bash -c 'until docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} exec -T postgres pg_isready -U '"$DB_USER"'; do sleep 2; done'
 
-                        docker compose -p ${TEST_PROJECT} exec -T app npx prisma generate
-                        docker compose -p ${TEST_PROJECT} exec -T app npm test
-                    '''
+                            docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} exec -T app npx prisma generate
+                            docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} exec -T app npm test
+                        '''
+                    }
                 }
             }
             post {
@@ -107,7 +109,7 @@ pipeline {
                     junit 'artifacts/test-results.xml'
 
                     sh '''
-                        docker compose -p ${TEST_PROJECT} logs --tail 100  true
+                        docker compose -p ${TEST_PROJECT} logs --tail 100 || true
                         docker compose -p ${TEST_PROJECT} down -v || true
                     '''
                 }

@@ -35,12 +35,6 @@ pipeline {
         stage('Build') {
             stages {
 
-                stage('Checkout') {
-                    steps {
-                        checkout scm
-                    }
-                }
-
                 stage('Diagnóstico') {
                     steps {
                         dir('backend') {

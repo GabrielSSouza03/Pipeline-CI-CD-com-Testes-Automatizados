@@ -41,6 +41,17 @@ pipeline {
                     }
                 }
 
+                stage('Diagnóstico') {
+                    steps {
+                        dir('backend') {
+                            sh '''
+                                pwd
+                                ls -la
+                            '''
+                        }
+                    }
+                }
+
                 stage('Instalar dependências e compilar') {
                     steps {
                         dir('backend') {

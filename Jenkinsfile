@@ -23,8 +23,8 @@ pipeline {
         BUILD_PROJECT  = "build_${BUILD_ID}"
         TEST_PROJECT   = "test_${BUILD_ID}"
         DEPLOY_PROJECT = "deploy_${BUILD_ID}"
-        IMAGE_NAME     = "C14-NP2"
-        IMAGE_TAG      = "C14-NP2:${GIT_COMMIT}"
+        IMAGE_NAME     = "c14-np2"
+        IMAGE_TAG      = "c14-np2:${GIT_COMMIT}"
     }
 
     stages {

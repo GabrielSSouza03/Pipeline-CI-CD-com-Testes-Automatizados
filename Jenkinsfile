@@ -54,7 +54,15 @@ pipeline {
                             -v \$(pwd):/app \
                             -w /app \
                             node:20-alpine \
-                            sh -c 'npm ci --prefer-offline && npm run build'
+                            npm ci --prefer-offline
+                            """
+
+                            sh """
+                            docker run --rm \
+                            -v \$(pwd):/app \
+                            -w /app \
+                            node:20-alpine \
+                            npm run build
                             """
                         }
                     }

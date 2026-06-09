@@ -105,8 +105,8 @@ pipeline {
                 always {
                     echo 'Publicando artifacts...'
 
-                    archiveArtifacts artifacts: '/backend/artifacts/**', fingerprint: true
-                    junit 'artifacts/test-results.xml'
+                    archiveArtifacts artifacts: 'artifacts/**', fingerprint: true, allowEmptyArchive: true
+                    junit testResults: 'artifacts/test-results.xml', allowEmptyResults: true
 
                     dir('backend') {
                         sh '''

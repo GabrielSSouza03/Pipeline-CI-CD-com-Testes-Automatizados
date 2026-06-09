@@ -40,7 +40,7 @@ pipeline {
                     -v \$(pwd):/app \
                     -w /app \
                     node:20-alpine \
-                    sh -c 'npm ci'
+                    npm ci
                     """
                 }
             }

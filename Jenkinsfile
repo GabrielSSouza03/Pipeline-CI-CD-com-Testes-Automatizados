@@ -32,6 +32,20 @@ pipeline {
         // ─────────────────────────────────────────
         // 1. BUILD do backend
         // ─────────────────────────────────────────
+        stage('Instalar dependências') {
+            steps {
+                dir('backend') {
+                    sh """
+                    docker run --rm \
+                    -v \$(pwd):/app \
+                    -w /app \
+                    node:20-alpine \
+                    sh -c 'npm ci'
+                    """
+                }
+            }
+        }
+
         stage('Build') {
             stages {
 
@@ -46,7 +60,7 @@ pipeline {
                     }
                 }
 
-                stage('Instalar dependências e compilar') {
+                stage('Compilar código') {
                     steps {
                         dir('backend') {
                             sh """
@@ -54,15 +68,7 @@ pipeline {
                             -v \$(pwd):/app \
                             -w /app \
                             node:20-alpine \
-                            npm ci --prefer-offline
-                            """
-
-                            sh """
-                            docker run --rm \
-                            -v \$(pwd):/app \
-                            -w /app \
-                            node:20-alpine \
-                            npm run build
+                            sh -c 'npm run build'
                             """
                         }
                     }

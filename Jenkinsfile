@@ -74,14 +74,11 @@ pipeline {
             }
         }
 
-    }
-
         // ─────────────────────────────────────────
         // 2. TESTES
         // ─────────────────────────────────────────
 
-
-    stage('Test') {
+        stage('Test') {
             steps {
                 withCredentials([
                     string(credentialsId: 'DB_USER', variable: 'DB_USER'),
@@ -116,6 +113,8 @@ pipeline {
                 }
             }
         }
+
+    }
 
     // ─────────────────────────────────────────
     // POST GLOBAL

@@ -30,7 +30,7 @@ pipeline {
     stages {
 
         // ─────────────────────────────────────────
-        // 1. BUILD
+        // 1. BUILD do backend
         // ─────────────────────────────────────────
         stage('Build') {
             stages {
@@ -41,33 +41,36 @@ pipeline {
                     }
                 }
 
-                stage('Instalar dependências') {
+                stage('Instalar dependências e compilar') {
                     steps {
-                        sh 'npm ci --prefer-offline'
+                        dir('backend') {
+                            sh '''
+                                docker run --rm \
+                                    -v $(pwd):/app \
+                                    -w /app \
+                                    node:20-alpine \
+                                    sh -c "npm ci --prefer-offline && npm run build"
+                            '''
+                        }
                     }
                 }
-
-                stage('Compilar projeto') {
-                    steps {
-                        sh 'npm run build'
-                    }
-                }
-
+                
                 stage('Empacotar artefato') {
                     steps {
-                        sh '''
-                            mkdir -p artifacts
-                            tar -czf artifacts/dist-${BUILD_ID}.tar.gz dist/
-                        '''
-                        stash name: 'dist', includes: 'dist/**,artifacts/**'
-                        archiveArtifacts artifacts: 'artifacts/*.tar.gz', fingerprint: true
+                        dir('backend') {
+                            sh '''
+                                mkdir -p artifacts
+                                tar -czf artifacts/dist-${BUILD_ID}.tar.gz dist/
+                            '''
+                            stash name: 'dist', includes: 'dist/**,artifacts/**'
+                            archiveArtifacts artifacts: 'artifacts/*.tar.gz', fingerprint: true
+                        }
                     }
                 }
 
             }
         }
 
-        
     }
 
     // ─────────────────────────────────────────

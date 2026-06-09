@@ -54,12 +54,14 @@ pipeline {
 
                 stage('Empacotar artefato') {
                     steps {
-                        sh """
-                            docker compose -p ${BUILD_PROJECT} run --rm app sh -c \
-                                'mkdir -p /app/artifacts && tar -czf /app/artifacts/dist-${BUILD_ID}.tar.gz -C /app dist'
-                            mkdir -p artifacts
-                            docker cp \$(docker compose -p ${BUILD_PROJECT} ps -q app):/app/artifacts/dist-${BUILD_ID}.tar.gz artifacts/ || true
-                        """
+                        withCredentials(appSecrets()) {
+                            sh """
+                                docker compose -p ${BUILD_PROJECT} run --rm --no-deps app \
+                                    sh -c \'mkdir -p /app/artifacts && tar -czf /app/artifacts/dist-${BUILD_ID}.tar.gz -C /app dist\'
+                                mkdir -p artifacts
+                                docker cp \$(docker compose -p ${BUILD_PROJECT} ps -q app):/app/artifacts/dist-${BUILD_ID}.tar.gz artifacts/ || true
+                            """
+                        }
                         stash name: 'dist', includes: 'artifacts/**'
                         archiveArtifacts artifacts: 'artifacts/*.tar.gz', fingerprint: true
                     }

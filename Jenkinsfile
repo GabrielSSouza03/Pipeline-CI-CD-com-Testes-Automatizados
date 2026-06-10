@@ -74,6 +74,50 @@ pipeline {
             }
         }
 
+        // ─────────────────────────────────────────
+        // 2. TESTES
+        // ─────────────────────────────────────────
+
+        stage('Test') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'DB_USER', variable: 'DB_USER'),
+                    string(credentialsId: 'DB_PASSWORD', variable: 'DB_PASSWORD'),
+                    string(credentialsId: 'DB_NAME', variable: 'DB_NAME'),
+                    string(credentialsId: 'JWT_SECRET', variable: 'JWT_SECRET'),
+                    string(credentialsId: 'JWT_EXPIRES_IN', variable: 'JWT_EXPIRES_IN')
+                ]) {
+                    dir('backend') {
+                        sh '''
+                            docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} down -v || true
+                            docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} build --no-cache
+                            docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} up -d
+
+                            timeout 60s bash -c 'until docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} exec -T postgres pg_isready -U '"$DB_USER"'; do sleep 2; done'
+
+                            docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} exec -T app npx prisma generate
+                            docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} exec -T app npm test
+                        '''
+                    }
+                }
+            }
+            post {
+                always {
+                    echo 'Publicando artifacts...'
+
+                    archiveArtifacts artifacts: 'artifacts/**', fingerprint: true, allowEmptyArchive: true
+                    junit testResults: 'artifacts/test-results.xml', allowEmptyResults: true
+
+                    dir('backend') {
+                        sh '''
+                            docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} logs --tail 100 || true
+                            docker compose -f ../docker-compose.yml -p ${TEST_PROJECT} down -v || true
+                        '''
+                    }
+                }
+            }
+        }
+
     }
 
     // ─────────────────────────────────────────

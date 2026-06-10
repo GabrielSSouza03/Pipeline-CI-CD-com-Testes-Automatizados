@@ -20,7 +20,6 @@ pipeline {
     }
 
     environment {
-        BUILD_PROJECT  = "build_${BUILD_ID}"
         TEST_PROJECT   = "test_${BUILD_ID}"
         DEPLOY_PROJECT = "deploy_${BUILD_ID}"
         IMAGE_TAG      = "${GIT_COMMIT}"
@@ -45,8 +44,6 @@ pipeline {
                             usernameVariable: 'GHCR_USER',
                             passwordVariable: 'GHCR_TOKEN'
                         )]) {
-
-                            sh 'npm ci --prefer-offline'
 
                             sh """
                                 echo \$GHCR_TOKEN | docker login ghcr.io -u \$GHCR_USER --password-stdin

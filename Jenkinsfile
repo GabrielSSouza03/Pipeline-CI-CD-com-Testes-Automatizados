@@ -23,54 +23,44 @@ pipeline {
         BUILD_PROJECT  = "build_${BUILD_ID}"
         TEST_PROJECT   = "test_${BUILD_ID}"
         DEPLOY_PROJECT = "deploy_${BUILD_ID}"
-        IMAGE_NAME     = "c14-np2"
-        IMAGE_TAG      = "c14-np2:${GIT_COMMIT}"
+        IMAGE_TAG      = "${GIT_COMMIT}"
     }
 
     stages {
 
-        // ─────────────────────────────────────────
-        // 1. BUILD do backend
-        // ─────────────────────────────────────────
-
-        stage('Build') {
-            stages {
- 
-                stage('Checkout') {
-                    steps {
-                        checkout scm
-                    }
-                }
- 
-                stage('Instalar dependências') {
-                    steps {
-                        dir('backend') {
-                            sh 'npm ci --prefer-offline'
-                        }
-                    }
-                }
- 
-                stage('Build da imagem Docker') {
-                    steps {
-                        dir('backend') {
-                            sh "docker build -t ${IMAGE_TAG} ."
-                        }
-                    }
-                }
- 
-                stage('Salvar imagem como artefato') {
-                    steps {
-                        sh "docker save ${IMAGE_TAG} -o tcc-backend-image.tar"
-                        archiveArtifacts artifacts: 'tcc-backend-image.tar',
-                                         fingerprint: true
-                    }
-                }
- 
+        stage('Checkout') {
+            steps {
+                checkout scm
             }
-            post {
-                always {
-                    sh "docker image rm ${IMAGE_TAG} || true"
-                }
+        }
+
+        // ─────────────────────────────
+        // BUILD + PUSH GHCR
+        // ─────────────────────────────
+        stage('Build & Push') {
+            steps {
+                    dir('backend') {
+                        withCredentials([usernamePassword(
+                            credentialsId: 'ghcr-credentials',
+                            usernameVariable: 'GHCR_USER',
+                            passwordVariable: 'GHCR_TOKEN'
+                        )]) {
+
+                            sh 'npm ci --prefer-offline'
+
+                            sh """
+                                echo \$GHCR_TOKEN | docker login ghcr.io -u \$GHCR_USER --password-stdin
+                            """
+
+                            sh """
+                                docker build -t ghcr.io/\$GHCR_USER/pipeline-ci-cd-com-testes-automatizados:${IMAGE_TAG} .
+                            """
+
+                            sh """
+                                docker push ghcr.io/\$GHCR_USER/pipeline-ci-cd-com-testes-automatizados:${IMAGE_TAG}
+                            """
+                        }
+                    }
             }
         }
 
